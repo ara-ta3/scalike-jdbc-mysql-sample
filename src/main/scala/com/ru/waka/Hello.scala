@@ -11,19 +11,23 @@ object Hello {
 
   Class.forName("com.mysql.cj.jdbc.Driver")
 
-  ConnectionPool.add(connectionSymbol, "jdbc:mysql://localhost/test?characterEncoding=UTF-8", "root", "")
+  ConnectionPool.add(
+    connectionSymbol,
+    "jdbc:mysql://127.0.0.1/test?characterEncoding=UTF-8",
+    "root",
+    "root"
+  )
 
-  val repository = new HelloRepository(connectionSymbol)
+  val repository = new HelloRepository()
 
   def main(args: Array[String]): Unit = {
     val time = LocalDateTime.now().toString
-    NamedDB(connectionSymbol) localTx {implicit  session =>
-      (
-        for {
-          _ <- createTable()
-          _ <- repository.put(time)
-          rs <- repository.fetch()
-        } yield rs) match {
+    NamedDB(connectionSymbol) localTx { implicit session =>
+      (for {
+        _  <- createTable()
+        _  <- repository.put(time)
+        rs <- repository.fetch()
+      } yield rs) match {
         case Right(rs) =>
           session.connection.commit()
           println(rs)
@@ -34,16 +38,17 @@ object Hello {
     }
   }
 
-  def createTable()(implicit session: DBSession): Either[Throwable, Boolean] = catching(classOf[Throwable]) either {
-    SQL(
-      """
+  def createTable()(implicit session: DBSession): Either[Throwable, Boolean] =
+    catching(classOf[Throwable]) either {
+      SQL(
+        """
         |CREATE TABLE IF NOT EXISTS foo (hello varchar(100))
       """.stripMargin
-    ).execute().apply()
-  }
+      ).execute().apply()
+    }
 }
 
-class HelloRepository(connectionName: Symbol) {
+class HelloRepository() {
   def put(hello: String)(implicit session: DBSession): Either[Throwable, Int] =
     catching(classOf[Throwable]) either
       SQL(
@@ -52,7 +57,7 @@ class HelloRepository(connectionName: Symbol) {
         """.stripMargin
       ).bind(hello).executeUpdate().apply()
 
-  def fetch() (implicit session: DBSession): Either[Throwable, Seq[Map[String, Any]]] =
+  def fetch()(implicit session: DBSession): Either[Throwable, Seq[Map[String, Any]]] =
     catching(classOf[Throwable]) either
       SQL(
         """
