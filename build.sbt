@@ -22,6 +22,6 @@ lazy val root = (project in file("."))
       name := "scalike-jdbc-mysql-sample",
       libraryDependencies ++= Seq(
           "org.scalikejdbc" %% "scalikejdbc" % "3.3.2",
-          "mysql" % "mysql-connector-java" % "6.0.6"
+          "mysql" % "mysql-connector-java" % "8.0.15"
       )
   )
