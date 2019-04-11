@@ -2,32 +2,35 @@ package com.ru.waka
 
 import java.time.LocalDateTime
 
-import scalikejdbc.{ConnectionPool, DBSession, NamedDB, SQL}
-
 import scala.util.control.Exception._
+import scalikejdbc._
 
 object Hello {
   private val connectionSymbol = 'testDB
 
-  Class.forName("com.mysql.cj.jdbc.Driver")
+  lazy val connection: Symbol = {
+    ConnectionPool.add(
+      connectionSymbol,
+      "jdbc:mysql://127.0.0.1/test?characterEncoding=UTF-8",
+      "root",
+      "root"
+    )
+    connectionSymbol
+  }
 
-  ConnectionPool.add(
-    connectionSymbol,
-    "jdbc:mysql://127.0.0.1/test?characterEncoding=UTF-8",
-    "root",
-    "root"
-  )
+  Class.forName("com.mysql.cj.jdbc.Driver")
 
   val repository = new HelloRepository()
 
   def main(args: Array[String]): Unit = {
     val time = LocalDateTime.now().toString
-    NamedDB(connectionSymbol) localTx { implicit session =>
+    NamedDB(connection) localTx { implicit session =>
       (for {
-        _  <- createTable()
-        _  <- repository.put(time)
-        rs <- repository.fetch()
-      } yield rs) match {
+        _   <- createTable()
+        _   <- repository.put(time)
+        rs  <- repository.fetch()
+        rss <- repository.fetchAsRecord()
+      } yield (rs, rss)) match {
         case Right(rs) =>
           session.connection.commit()
           println(rs)
@@ -42,7 +45,7 @@ object Hello {
     catching(classOf[Throwable]) either {
       SQL(
         """
-        |CREATE TABLE IF NOT EXISTS foo (hello varchar(100))
+        |CREATE TABLE IF NOT EXISTS foo (id int unsigned not null auto_increment primary key,hello varchar(100))
       """.stripMargin
       ).execute().apply()
     }
@@ -64,4 +67,15 @@ class HelloRepository() {
           |SELECT hello FROM foo;
         """.stripMargin
       ).map(_.toMap()).list().apply()
+
+  def fetchAsRecord()(implicit session: DBSession): Either[Throwable, Seq[Record]] =
+    catching(classOf[Throwable]) either {
+      val r = Record.syntax("r")
+      val sql = withSQL {
+        select(r.result(sqls"count(*) as count").column("count"))
+          .from(Record as r)
+      }
+      println(sql.statement)
+      sql.map(Record(r)).list().apply()
+    }
 }
