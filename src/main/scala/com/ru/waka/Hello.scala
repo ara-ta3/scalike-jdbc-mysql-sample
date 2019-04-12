@@ -11,7 +11,7 @@ object Hello {
   lazy val connection: Symbol = {
     ConnectionPool.add(
       connectionSymbol,
-      "jdbc:mysql://127.0.0.1/test?characterEncoding=UTF-8",
+      "jdbc:mysql://127.0.0.1:3307/test?characterEncoding=UTF-8",
       "root",
       "root"
     )
@@ -26,11 +26,12 @@ object Hello {
     val time = LocalDateTime.now().toString
     NamedDB(connection) localTx { implicit session =>
       (for {
-        _   <- createTable()
-        _   <- repository.put(time)
-        rs  <- repository.fetch()
-        rss <- repository.fetchAsRecord()
-      } yield (rs, rss)) match {
+        _       <- createTable()
+        id      <- repository.put(time)
+        _       <- repository.put2(id)
+        _       <- repository.fetch()
+        records <- repository.fetchAsRecord()
+      } yield records) match {
         case Right(rs) =>
           session.connection.commit()
           println(rs)
@@ -42,13 +43,30 @@ object Hello {
   }
 
   def createTable()(implicit session: DBSession): Either[Throwable, Boolean] =
-    catching(classOf[Throwable]) either {
-      SQL(
-        """
-        |CREATE TABLE IF NOT EXISTS foo (id int unsigned not null auto_increment primary key,hello varchar(100))
+    for {
+      _ <- catching(classOf[Throwable]) either {
+        SQL(
+          """
+        |CREATE TABLE IF NOT EXISTS foo (
+        |  id int unsigned not null auto_increment primary key,
+        |  hello varchar(100)
+        |)
       """.stripMargin
-      ).execute().apply()
-    }
+        ).execute().apply()
+      }
+      _ <- catching(classOf[Throwable]) either {
+        SQL(
+          """
+        |CREATE TABLE IF NOT EXISTS bar (
+        |  id int unsigned not null auto_increment primary key,
+        |  foo_id int unsigned not null,
+        |  foreign key (foo_id) references foo(id) on delete cascade
+        |)
+      """.stripMargin
+        ).execute().apply()
+      }
+    } yield true
+
 }
 
 class HelloRepository() {
@@ -58,7 +76,15 @@ class HelloRepository() {
         """
           |INSERT INTO foo (hello) VALUES (?);
         """.stripMargin
-      ).bind(hello).executeUpdate().apply()
+      ).bind(hello).updateAndReturnGeneratedKey().apply().toInt
+
+  def put2(id: Int)(implicit session: DBSession): Either[Throwable, Int] =
+    catching(classOf[Throwable]) either
+      SQL(
+        """
+          |INSERT INTO bar (foo_id) VALUES (?);
+        """.stripMargin
+      ).bind(id).executeUpdate().apply()
 
   def fetch()(implicit session: DBSession): Either[Throwable, Seq[Map[String, Any]]] =
     catching(classOf[Throwable]) either
@@ -71,9 +97,15 @@ class HelloRepository() {
   def fetchAsRecord()(implicit session: DBSession): Either[Throwable, Seq[Record]] =
     catching(classOf[Throwable]) either {
       val r = Record.syntax("r")
+      val b = BarRecord.syntax("b")
       val sql = withSQL {
-        select(r.result(sqls"count(*) as count").column("count"))
-          .from(Record as r)
+        select(
+          sqls"${r.id} as ${r.resultName.id}, ${r.hello} as ${r.resultName.hello}, ${sqls
+            .count(r.id)} as ${r.resultName.count}"
+        ).from(Record as r)
+          .leftJoin(BarRecord as b)
+          .on(b.fooId, r.id)
+          .groupBy(r.id)
       }
       println(sql.statement)
       sql.map(Record(r)).list().apply()
