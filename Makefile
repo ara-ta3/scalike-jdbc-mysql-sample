@@ -16,7 +16,7 @@ run/mysql/docker:
 		--rm \
 		--name $(MYSQL_DOCKER_NAME) \
 		--detach \
-		--publish 3306:$(MYSQL_PORT) \
+		--publish $(MYSQL_PORT):3306 \
 		--env MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) \
 		--env MYSQL_DATABASE=test \
 		mysql:5.6
