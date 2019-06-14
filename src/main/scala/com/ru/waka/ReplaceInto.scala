@@ -23,6 +23,14 @@ object ReplaceInto {
       catching(classOf[Throwable]) either {
         s.batch(data1: _*).apply()
         s.batch(data2: _*).apply()
+
+        val u = UniqTestRecord.syntax
+        val rs = withSQL(select.from(UniqTestRecord as u))
+          .map(rs => (rs.long(u.resultName.id), rs.long(u.resultName.otherId)))
+          .list()
+          .apply()
+        println(rs)
+        // List((1,2), (2,3))
       }
     }
 
