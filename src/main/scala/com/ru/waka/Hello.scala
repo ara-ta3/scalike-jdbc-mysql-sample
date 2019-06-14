@@ -11,7 +11,7 @@ object Hello {
   lazy val connection: Symbol = {
     ConnectionPool.add(
       connectionSymbol,
-      "jdbc:mysql://127.0.0.1:3307/test?characterEncoding=UTF-8",
+      "jdbc:mysql://127.0.0.1:3306/test?characterEncoding=UTF-8",
       "root",
       "root"
     )
