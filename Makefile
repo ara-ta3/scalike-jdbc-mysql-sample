@@ -19,6 +19,7 @@ run/mysql/docker:
 		--publish $(MYSQL_PORT):3306 \
 		--env MYSQL_ROOT_PASSWORD=$(MYSQL_ROOT_PASSWORD) \
 		--env MYSQL_DATABASE=test \
+		--volume $(PWD)/sql/:/docker-entrypoint-initdb.d/ \
 		mysql:5.6
 
 stop/mysql/docker:
