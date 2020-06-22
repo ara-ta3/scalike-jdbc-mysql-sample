@@ -20,5 +20,9 @@ lazy val root = (project in file("."))
   .settings(commonSettings)
   .settings(
       name := "scalike-jdbc-mysql-sample",
-      libraryDependencies ++= Dependencies.database ++ Dependencies.logger
+      libraryDependencies ++= Seq(
+          Dependencies.scalikejdbc,
+          Dependencies.mysql,
+          Dependencies.logger
+          )
   )
