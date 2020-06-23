@@ -16,6 +16,9 @@ val commonSettings = Seq(
     ),
 )
 
+// to renovate
+libraryDependencies ++= Seq()
+
 lazy val root = (project in file("."))
   .settings(commonSettings)
   .settings(
